@@ -1,21 +1,12 @@
 #include <iostream>
 #include <string>
-#include <map>
 #include <functional>
 #include <boost/asio.hpp>
-#include <boost/asio/ssl.hpp>
 #include <cxxopts.hpp>
-#include "LUrlParser.h"
-#include "prometheus/text_serializer.h"
-#include "stalk/stalk_websocket_client.h"
 #include "stalk/stalk_server.h"
 #include "logger/logger.h"
 #include "server_credentials.h"
-#include "middleware/middleware.h"
-#include "middleware/middleware_metrics.h"
-#include "middleware/middleware_delayer.h"
-#include "middleware/middleware_secure_header_hoister.h"
-#include "metrics_instance.h"
+#include "core_routes.h"
 
 /*
  * Scenarios
@@ -64,76 +55,18 @@ int main(int argc, const char* argv[])
 
     logger->info("WebServer started, listening on port {}", webServer->port());
 
-    auto hoister = std::make_shared<Middleware::SecureHeaderHoister>();
-    auto delayer = std::make_shared<Middleware::Delayer>(ioc);
-    auto metrics = std::make_shared<Middleware::Metrics>("http_requests");
+    // Set up base routes
+    CoreRoutes coreRoutes(ioc, webServer);
 
+    try
     {
-        std::string path = "/";
-
-        auto route = Stalk::Route::Http(
-            path,
-            { Stalk::Verb::Get },
-            [logger, path, metrics, hoister, delayer](Stalk::ConnectionDetail detail, Stalk::Request&& req, Stalk::RequestVariables&& variables, Stalk::SendResponse&& send)
-                {
-                    logger->info("Received {}", req);
-
-                    // Create middleware chain
-                    auto chain = std::make_shared<Middleware::Chain>();
-
-                    chain->add([metrics, path](Middleware::Session&& session, std::shared_ptr<Middleware::Chain> chain) {
-                        metrics->process(path, std::move(session), chain);
-                    });
-
-                    chain->add(Middleware::SecureHeaderHoister());
-
-                    chain->add([logger, delayer](Middleware::Session&& session, std::shared_ptr<Middleware::Chain> chain) {
-                        delayer->process(std::move(session), chain);
-                    });
-
-                    Middleware::Session session(std::move(detail), std::move(req), std::move(variables), Stalk::Response(), std::move(send));
-                    chain->process(std::move(session));
-                });
-        route.setAcceptLongerPaths();
-        webServer->addHttpRoute(std::move(route));
+        ioc.run();
     }
-
+    catch (const std::exception& e)
     {
-        std::string path = "/metrics";
-
-        auto route = Stalk::Route::Http(
-            path,
-            { Stalk::Verb::Get },
-            [logger, path](Stalk::ConnectionDetail /*detail*/, Stalk::Request&& req, Stalk::RequestVariables&& /*variables*/, Stalk::SendResponse&& send)
-                {
-                    logger->info("Received {}", req);
-
-                    auto metrics = Metrics::registry().Collect();
-
-                    prometheus::TextSerializer serialiser;
-                    std::ostringstream oss;
-                    serialiser.Serialize(oss, metrics);
-                    auto resp = Stalk::Response().body(oss.str());
-                    send(std::move(resp));
-                });
-        route.setAcceptLongerPaths();
-        webServer->addHttpRoute(std::move(route));
+        std::cerr << "Caught exception: " << e.what() << std::endl;
+        throw;
     }
-
-
-    webServer->addWebsocketRoute(Stalk::Route::Websocket(
-        "/ws",
-        Stalk::RoutedWebsocketPreUpgradeCb(),
-        [logger](bool connected, std::shared_ptr<Stalk::WebsocketSession> session, Stalk::RequestVariables&& variables) {
-            logger->info("WebSocket Route Callback: Connected:{}", connected);
-
-            session->send("Hello websocket msg from Stalk");
-        },
-        [logger](std::shared_ptr<Stalk::WebsocketSession> session, std::string&& msg) {
-            logger->info("WebSocket Route Callback: msg:{}", msg);
-        }));
-
-    ioc.run();
 
     return 0;
 }

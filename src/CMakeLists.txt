@@ -22,6 +22,7 @@ include_directories(${PROMETHEUS_INCLUDEDIR})
 
 set(SOURCE_FILES
     main.cpp
+    core_routes.cpp
     metrics_instance.cpp
     middleware/middleware.cpp
     middleware/middleware_delayer.cpp
