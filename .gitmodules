@@ -1,0 +1,12 @@
+[submodule "external/prometheus-cpp/prometheus-cpp"]
+	path = external/prometheus-cpp/prometheus-cpp
+	url = https://github.com/jupp0r/prometheus-cpp.git
+[submodule "external/LUrlParser"]
+	path = external/LUrlParser
+	url = https://github.com/corporateshark/LUrlParser.git
+[submodule "external/spdlog"]
+	path = external/spdlog
+	url = https://github.com/gabime/spdlog.git
+[submodule "external/cxxopts"]
+	path = external/cxxopts
+	url = https://github.com/jarro2783/cxxopts.git

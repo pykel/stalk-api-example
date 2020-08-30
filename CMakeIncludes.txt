@@ -1,0 +1,46 @@
+# Set global flags for CMake system
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
+
+# Add new build types
+message("* Adding build types...")
+SET(CMAKE_CXX_FLAGS_COVERAGE
+    "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -O3 -fprofile-instr-generate -fcoverage-mapping"
+)
+SET(CMAKE_C_FLAGS_COVERAGE
+    "${CMAKE_C_FLAGS_RELWITHDEBINFO} -O3 -fprofile-instr-generate -fcoverage-mapping"
+)
+SET(CMAKE_EXE_LINKER_FLAGS_COVERAGE
+    "${CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO} -O3 -fprofile-instr-generate -fcoverage-mapping"
+)
+SET(CMAKE_SHARED_LINKER_FLAGS_COVERAGE
+    "${CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO} -O3 -fprofile-instr-generate -fcoverage-mapping"
+)
+MARK_AS_ADVANCED(
+    CMAKE_CXX_FLAGS_COVERAGE
+    CMAKE_C_FLAGS_COVERAGE
+    CMAKE_EXE_LINKER_FLAGS_COVERAGE
+    CMAKE_SHARED_LINKER_FLAGS_COVERAGE )
+
+# Set the global flags for the make compiler
+add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:-std=c++17>")
+add_compile_options(
+  "$<$<CONFIG:MinSizeRel>:-Os>"
+  "$<$<CONFIG:Debug>:-g>"
+  "$<$<CONFIG:Release>:-O3>"
+  "$<$<CONFIG:RelWithDebInfo>:-O3;-g>"
+)
+
+# The Directory that this file is in
+set(SYSTEM_DIR ${CMAKE_CURRENT_LIST_DIR})
+set(PROJ_SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/src)
+
+set(EXTERNAL_DIR "${SYSTEM_DIR}/external")
+set(SPDLOG_INCLUDEDIR "${SYSTEM_DIR}/external/spdlog/include/")
+set(LOGGER_INCLUDEDIR "${SYSTEM_DIR}/external/logger/include/")
+set(CXXOPTS_INCLUDEDIR "${SYSTEM_DIR}/external/cxxopts-2.2.0/include/")
+set(PROMETHEUS_INCLUDEDIR "${EXTERNAL_DIR}/prometheus-cpp/prometheus-cpp/core/include/" "${EXTERNAL_DIR}/prometheus-cpp/")
+set(DOCTEST_INCLUDEDIR "${SYSTEM_DIR}/external/doctest/doctest")
+set(BASE64_INCLUDEDIR "${SYSTEM_DIR}/external/base64")
+
+enable_testing()
+

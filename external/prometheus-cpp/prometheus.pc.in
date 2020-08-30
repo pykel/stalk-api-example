@@ -1,0 +1,12 @@
+prefix=@DEST_DIR@
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+includedir=${prefix}/include@INCLUDE_PATH@
+
+Name: libprometheus-cpp
+Description: Prometheus CPP lib
+Version: 1.0
+
+Libs: -L${libdir} @PRIVATE_LIBS@
+Cflags: -I${includedir}
+
