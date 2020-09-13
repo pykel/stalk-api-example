@@ -16,6 +16,7 @@ link_directories(${STALK_LIBRARY_DIRS})
 
 include_directories(${LURLPARSER_INCLUDEDIR})
 include_directories(${SPDLOG_INCLUDEDIR})
+include_directories(${JSON_INCLUDEDIR})
 include_directories(${LOGGER_INCLUDEDIR})
 include_directories(${CXXOPTS_INCLUDEDIR})
 include_directories(${PROMETHEUS_INCLUDEDIR})

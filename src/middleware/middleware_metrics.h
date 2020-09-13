@@ -25,7 +25,7 @@ private:
     prometheus::Family<prometheus::Counter>& counterFamily_;
     using CounterKey = std::tuple<std::string, Stalk::Verb, Stalk::Status>;
     std::map<CounterKey, prometheus::Counter&> counters_;
-    Logger::Log logger;
+    std::shared_ptr<Logger> logger;
 };
 
 } // namespace Middleware

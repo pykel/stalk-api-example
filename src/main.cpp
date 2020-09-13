@@ -4,6 +4,7 @@
 #include <boost/asio.hpp>
 #include <cxxopts.hpp>
 #include "stalk/stalk_server.h"
+#include "stalk/stalk_logger.h"
 #include "logger/logger.h"
 #include "server_credentials.h"
 #include "core_routes.h"
@@ -12,6 +13,7 @@
  * Scenarios
  ** HTTP Routing
  ** Websocket Routing
+ ** Middleware Chains - metrics/logging/role-based-security/x509-based-security
  ** Request/Response metrics
  ** JWT Routing
  ** ConnectionDetails Routing
@@ -39,7 +41,8 @@ int main(int argc, const char* argv[])
 
     const std::string logLevel = args.count("log-level") ? args["log-level"].as<std::string>() : "info";
 
-    Logger::setLevel(spdlog::level::from_str(logLevel));
+    const auto level = spdlog::level::from_str(logLevel);
+    Logger::setLevel(level);
 
     auto logger = Logger::get("stalk-api-example");
 
@@ -49,6 +52,15 @@ int main(int argc, const char* argv[])
     const uint16_t port = args.count("listen-port") ? args["listen-port"].as<uint16_t>() : uint16_t();
 
     logger->info("Starting WebServer on port {}", port);
+
+    // Assign a logging callback to Stalk to hook into spdlog
+    auto serverLogger = Logger::get("stalk");
+    Stalk::Logger::setDefaultLevel(static_cast<Stalk::Logger::Level>(level));
+    Stalk::Logger::setLogCb([serverLogger](Stalk::Logger::Level lvl, const std::string_view& msg)
+        {
+            // stalk levels same as spdlog level_enums
+            serverLogger->log(static_cast<spdlog::level::level_enum>(lvl), msg);
+        });
 
     auto webServer = std::make_shared<Stalk::WebServer>(ioc, address, port, serverKey(), serverCert());
     webServer->run();

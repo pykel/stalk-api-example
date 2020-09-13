@@ -18,7 +18,7 @@ public:
     void operator()(Session&& session, std::shared_ptr<Chain> chain);
 
 private:
-    Logger::Log logger;
+    std::shared_ptr<Logger> logger;
 };
 
 } // namespace Middleware

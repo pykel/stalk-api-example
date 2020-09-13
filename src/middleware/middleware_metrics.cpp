@@ -17,7 +17,7 @@ Metrics::Metrics(const std::string& name, const std::map<std::string, std::strin
 http_requests_total{method="post",code="200"} 1027 1395066363000
 http_requests_total{method="post",code="400"}    3 1395066363000
 #endif
-    logger = Logger::get("Middleware.Metrics" + std::to_string((long)this));
+    logger = Logger::get("Middleware.Metrics");
 }
 
 void Metrics::process(const std::string& path, Session&& session, std::shared_ptr<Chain> chain)

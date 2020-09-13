@@ -29,7 +29,7 @@ private:
 
     boost::asio::io_context& ioc;
 
-    Logger::Log logger;
+    std::shared_ptr<Logger> logger;
 };
 
 } // namespace Middleware

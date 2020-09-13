@@ -8,7 +8,7 @@ namespace Middleware
 
 Delayer::Delayer(boost::asio::io_context& ioc) : ioc(ioc)
 {
-    logger = Logger::get("Middleware.Delayer" + std::to_string((long)this));
+    logger = Logger::get("Middleware.Delayer");
 }
 
 void Delayer::process(Session&& session, std::shared_ptr<Chain> chain)

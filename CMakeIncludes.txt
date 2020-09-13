@@ -10,6 +10,7 @@ set(PROJ_SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/src)
 
 set(EXTERNAL_DIR "${SYSTEM_DIR}/external")
 set(SPDLOG_INCLUDEDIR "${EXTERNAL_DIR}/spdlog/include/")
+set(JSON_INCLUDEDIR "${EXTERNAL_DIR}/nlohmann-json/include/")
 set(LOGGER_INCLUDEDIR "${EXTERNAL_DIR}/logger/include/")
 set(CXXOPTS_INCLUDEDIR "${EXTERNAL_DIR}/cxxopts/include/")
 set(PROMETHEUS_INCLUDEDIR "${EXTERNAL_DIR}/prometheus-cpp/prometheus-cpp/core/include/" "${EXTERNAL_DIR}/prometheus-cpp/")
