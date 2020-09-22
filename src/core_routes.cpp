@@ -14,6 +14,7 @@
 #include "routes/route_logging.h"
 #include "routes/route_metrics.h"
 #include "routes/route_delayer.h"
+#include "routes/route_helpers.h"
 
 
 CoreRoutes::CoreRoutes(boost::asio::io_context& ioc, std::shared_ptr<Stalk::WebServer> server) :
@@ -27,32 +28,46 @@ CoreRoutes::CoreRoutes(boost::asio::io_context& ioc, std::shared_ptr<Stalk::WebS
     RouteMetrics { server };
     RouteDelayer { ioc, server };
 
+    // Add a basic route with no middleware chain
+
     {
-        const std::string path = "/";
+        const std::string path = "/raw";
 
         auto route = Stalk::Route::Http(
             path,
-            { Stalk::Verb::Get, Stalk::Verb::Post },
-            [logger, path](Stalk::ConnectionDetail detail, Stalk::Request&& req, Stalk::RequestVariables&& variables, Stalk::SendResponse&& send)
+            { Stalk::Verb::Get, Stalk::Verb::Put, Stalk::Verb::Delete, Stalk::Verb::Post },
+            [logger](Stalk::ConnectionDetail detail, Stalk::Request&& req, Stalk::RequestVariables&& variables, Stalk::SendResponse&& send)
                 {
-                    logger->info("Received {}", req);
+                    logger->info("Received request: {} {}", req.target(), Stalk::verbString(req.method()));
 
-                    // Create standard chain
-                    auto chain = Routes::buildRouteChainBasic(path);
+                    auto resp = Stalk::Response(req).status(Stalk::Status::ok);
 
-                    chain->add([](Middleware::Session&& session, std::shared_ptr<Middleware::Chain> /*chain*/) {
-                        auto resp = Stalk::Response()
-                                .body(std::string("Hello"))
-                                .status(session.req.method() == Stalk::Verb::Post ? Stalk::Status::accepted : Stalk::Status::ok);
-                        session.send(std::move(resp));
-                    });
+                    logger->info("Sending response: {} body-size:{}", resp.status(), resp.body().size());
 
-                    Middleware::Session session(std::move(detail), std::move(req), std::move(variables), Stalk::Response(), std::move(send));
-                    chain->process(std::move(session));
+                    send(std::move(resp));
                 });
         route.setAcceptLongerPaths();
         server_->addHttpRoute(std::move(route));
     }
+
+    // Add a simple route that uses the basic middleware chain
+
+    {
+        const std::string path = "/";
+
+        auto chain = Routes::buildRouteChainBasic(path);
+
+        auto chainFn = [logger](Middleware::Session&& session, std::shared_ptr<Middleware::Chain> /*chain*/)
+            {
+                logger->info("Received {}", session.req);
+
+                auto resp = Stalk::Response();
+                session.send(std::move(resp));
+            };
+
+        Routes::addRouteWithChain(server, path, { Stalk::Verb::Get, Stalk::Verb::Post }, chain, chainFn);
+    }
+
 
     server_->addWebsocketRoute(Stalk::Route::Websocket(
         "/ws",
