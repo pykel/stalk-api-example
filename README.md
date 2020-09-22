@@ -13,7 +13,7 @@ The goal is to create an example webservice that demonstrates common functions s
 ```
 (
   export PKG_CONFIG_PATH=$HOME/path-to-stalk-install/lib/pkgconfig ; \
-  cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo ../
+  cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=$PWD/install ../
 )
 
 make -j$(nproc)

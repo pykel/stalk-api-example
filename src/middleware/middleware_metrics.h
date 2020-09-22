@@ -12,20 +12,42 @@
 namespace Middleware
 {
 
-class Metrics : public std::enable_shared_from_this<Metrics>
+class Metrics
 {
 public:
-    Metrics(const std::string& metricName, const std::map<std::string, std::string>& metricLabels = std::map<std::string, std::string>());
+#if 0
+    Metrics() :
+        counterFamily_(prometheus::BuildCounter().Name("http_requests")
+                                           .Help("Middleware Metrics")
+                                           .Register(::Metrics::registry())),
+        logger_(Logger::get("Middleware.Metrics"))
+    {
+    #if 0
+    # HELP http_requests_total The total number of HTTP requests.
+    # TYPE http_requests_total counter
+    http_requests_total{method="post",code="200"} 1027 1395066363000
+    http_requests_total{method="post",code="400"}    3 1395066363000
+    #endif
+    }
 
-    void process(const std::string& path, Session&& session, std::shared_ptr<Chain> chain);
-    //void operator()(Session&& session, std::shared_ptr<Chain> chain);
+    Metrics(const Metrics& rhs) :
+        counterFamily_(rhs.counterFamily_),
+        logger_(rhs.logger_)
+    {
+    }
+
+    Metrics(Metrics&& rhs) = default;
+
+    /// Get the singleton instance.
+    static std::shared_ptr<Metrics> instance();
+#endif
+    //void process(const std::string& path, Session&& session, std::shared_ptr<Chain> chain);
+    void operator()(Session&& session, std::shared_ptr<Chain> chain);
 
 private:
 
-    prometheus::Family<prometheus::Counter>& counterFamily_;
-    using CounterKey = std::tuple<std::string, Stalk::Verb, Stalk::Status>;
-    std::map<CounterKey, prometheus::Counter&> counters_;
-    std::shared_ptr<Logger> logger;
+//    prometheus::Family<prometheus::Counter>& counterFamily_;
+//    std::shared_ptr<Logger> logger_;
 };
 
 } // namespace Middleware

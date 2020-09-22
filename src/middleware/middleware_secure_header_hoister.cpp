@@ -34,9 +34,9 @@ const std::string XFCC::valueDNS = "DNS";
 
 } // namespace Headers
 
-SecureHeaderHoister::SecureHeaderHoister()
+SecureHeaderHoister::SecureHeaderHoister() :
+    logger(Logger::get("Middleware.SecureHeaderHoister"))
 {
-    logger = Logger::get("Middleware.SecureHeaderHoister");
 }
 
 void SecureHeaderHoister::process(Session&& session, std::shared_ptr<Chain> chain)

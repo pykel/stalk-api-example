@@ -2,6 +2,7 @@
 #include <string>
 #include <functional>
 #include <boost/asio.hpp>
+#include "nlohmann/json.hpp"
 #include "stalk/stalk_websocket_client.h"
 #include "stalk/stalk_server.h"
 #include "prometheus/text_serializer.h"
@@ -11,7 +12,13 @@
 #include "middleware/middleware_delayer.h"
 #include "middleware/middleware_secure_header_hoister.h"
 #include "metrics_instance.h"
+#include "routes/route_chains.h"
+#include "routes/route_logging.h"
 
+using json = nlohmann::json;
+
+
+namespace {
 
 std::shared_ptr<spdlog::logger> logger()
 {
@@ -23,34 +30,31 @@ std::shared_ptr<spdlog::logger> logger()
     return l;
 }
 
+}
+
+
 CoreRoutes::CoreRoutes(boost::asio::io_context& ioc, std::shared_ptr<Stalk::WebServer> server) :
     ioc_(ioc),
     server_(server)
 {
     logger()->info("CoreRoutes()");
 
-    auto hoister = std::make_shared<Middleware::SecureHeaderHoister>();
-    auto delayer = std::make_shared<Middleware::Delayer>(ioc);
-    auto metrics = std::make_shared<Middleware::Metrics>("http_requests");
+    {
+        RouteLogging route(server);
+    }
 
     {
-        std::string path = "/";
+        const std::string path = "/";
 
         auto route = Stalk::Route::Http(
             path,
             { Stalk::Verb::Get, Stalk::Verb::Post },
-            [path, metrics, hoister, delayer](Stalk::ConnectionDetail detail, Stalk::Request&& req, Stalk::RequestVariables&& variables, Stalk::SendResponse&& send)
+            [path](Stalk::ConnectionDetail detail, Stalk::Request&& req, Stalk::RequestVariables&& variables, Stalk::SendResponse&& send)
                 {
                     logger()->info("Received {}", req);
 
-                    // Create middleware chain
-                    auto chain = std::make_shared<Middleware::Chain>();
-
-                    chain->add([metrics, path](Middleware::Session&& session, std::shared_ptr<Middleware::Chain> chain) {
-                        metrics->process(path, std::move(session), chain);
-                    });
-
-                    chain->add(Middleware::SecureHeaderHoister());
+                    // Create standard chain
+                    auto chain = Routes::buildRouteChainBasic(path);
 
                     chain->add([](Middleware::Session&& session, std::shared_ptr<Middleware::Chain> /*chain*/) {
                         auto resp = Stalk::Response()
@@ -72,18 +76,15 @@ CoreRoutes::CoreRoutes(boost::asio::io_context& ioc, std::shared_ptr<Stalk::WebS
         auto route = Stalk::Route::Http(
             path,
             { Stalk::Verb::Get, Stalk::Verb::Post },
-            [path, metrics, hoister, delayer](Stalk::ConnectionDetail detail, Stalk::Request&& req, Stalk::RequestVariables&& variables, Stalk::SendResponse&& send)
+            [path, &ioc](Stalk::ConnectionDetail detail, Stalk::Request&& req, Stalk::RequestVariables&& variables, Stalk::SendResponse&& send)
                 {
                     logger()->info("Received {}", req);
 
-                    // Create middleware chain
-                    auto chain = std::make_shared<Middleware::Chain>();
+                    // Create standard chain
+                    auto chain = Routes::buildRouteChainBasic(path);
 
-                    chain->add([metrics, path](Middleware::Session&& session, std::shared_ptr<Middleware::Chain> chain) {
-                        metrics->process(path, std::move(session), chain);
-                    });
-
-                    chain->add(Middleware::SecureHeaderHoister());
+                    // Add a delayer to the chain
+                    auto delayer = std::make_shared<Middleware::Delayer>(ioc);
 
                     chain->add([delayer](Middleware::Session&& session, std::shared_ptr<Middleware::Chain> chain) {
                         delayer->process(std::move(session), chain);
@@ -109,16 +110,12 @@ CoreRoutes::CoreRoutes(boost::asio::io_context& ioc, std::shared_ptr<Stalk::WebS
         auto route = Stalk::Route::Http(
             path,
             { Stalk::Verb::Get },
-            [path, metrics](Stalk::ConnectionDetail detail, Stalk::Request&& req, Stalk::RequestVariables&& variables, Stalk::SendResponse&& send)
+            [path](Stalk::ConnectionDetail detail, Stalk::Request&& req, Stalk::RequestVariables&& variables, Stalk::SendResponse&& send)
                 {
                     logger()->info("Received {}", req);
 
-                    // Create middleware chain
-                    auto chain = std::make_shared<Middleware::Chain>();
-
-                    chain->add([metrics, path](Middleware::Session&& session, std::shared_ptr<Middleware::Chain> chain) {
-                        metrics->process(path, std::move(session), chain);
-                    });
+                    // Create standard chain
+                    auto chain = Routes::buildRouteChainBasic(path);
 
                     chain->add([](Middleware::Session&& session, std::shared_ptr<Middleware::Chain> /*chain*/) {
 
@@ -137,7 +134,6 @@ CoreRoutes::CoreRoutes(boost::asio::io_context& ioc, std::shared_ptr<Stalk::WebS
         route.setAcceptLongerPaths();
         server_->addHttpRoute(std::move(route));
     }
-
 
     server_->addWebsocketRoute(Stalk::Route::Websocket(
         "/ws",
