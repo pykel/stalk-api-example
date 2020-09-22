@@ -6,22 +6,7 @@
 
 namespace Routes
 {
-#if 0
-inline std::shared_ptr<Middleware::Chain> createRouteChain(const std::string& path)
-{
-    // Create middleware chain
-    auto chain = std::make_shared<Middleware::Chain>();
 
-    chain->add([path](Middleware::Session&& session, std::shared_ptr<Middleware::Chain> chain) {
-        Middleware::Metrics::instance()->process(path, std::move(session), chain);
-    });
-
-    chain->add(Middleware::SecureHeaderHoister());
-
-
-    return chain;
-}
-#endif
 inline std::shared_ptr<Middleware::Chain> buildRouteChainBasic(const std::string& path)
 {
     // Create middleware chain

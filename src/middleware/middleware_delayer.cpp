@@ -11,11 +11,9 @@ Delayer::Delayer(boost::asio::io_context& ioc) : ioc(ioc)
     logger = Logger::get("Middleware.Delayer");
 }
 
-void Delayer::process(Session&& session, std::shared_ptr<Chain> chain)
+void Delayer::operator()(Session&& session, std::shared_ptr<Chain> chain)
 {
     logger->info("Processing {}", session.req);
-
-    session.req.set("TestHeader", "8.8");
 
     auto timer = std::make_shared<boost::asio::steady_timer>(ioc);
 
@@ -34,11 +32,6 @@ void Delayer::process(Session&& session, std::shared_ptr<Chain> chain)
             // Move to the next middleware
             chain->process(std::move(session));
         });
-}
-
-void Delayer::operator()(Session&& session, std::shared_ptr<Chain> chain)
-{
-    process(std::move(session), chain);
 }
 
 } // namespace Middleware

@@ -29,7 +29,10 @@ set(SOURCE_FILES
     middleware/middleware_delayer.cpp
     middleware/middleware_metrics.cpp
     middleware/middleware_secure_header_hoister.cpp
+    routes/route_helpers.cpp
     routes/route_logging.cpp
+    routes/route_metrics.cpp
+    routes/route_delayer.cpp
 )
 
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
