@@ -1,80 +1,139 @@
 #include "middleware_secure_header_hoister.h"
 #include "logger/logger.h"
+#include "utils/string_transform.h"
+
+
+namespace {
+
+std::shared_ptr<Logger> logger()
+{
+    static std::shared_ptr<Logger> l = Logger::get("Middleware.SecureHeaderHoister");
+    return l;
+}
+
+} // anon namespace
 
 namespace Middleware
 {
 
-
-namespace Headers
+namespace SecureHeaders
 {
 
-struct XFCC
-{
-    static const std::string key;
-    static const std::string separator;
-
-    static const std::string valueBy;
-    static const std::string valueHash;
-    static const std::string valueCert;
-    static const std::string valueChain;
-    static const std::string valueSubject;
-    static const std::string valueURI;
-    static const std::string valueDNS;
-};
-
-const std::string XFCC::key = "x-forwarded-client-cert";
-const std::string XFCC::separator = ";";
-const std::string XFCC::valueBy = "By";
-const std::string XFCC::valueHash = "Hash";
-const std::string XFCC::valueCert = "Cert";
-const std::string XFCC::valueChain = "Chain";
-const std::string XFCC::valueSubject = "Subject";
-const std::string XFCC::valueURI = "URI";
-const std::string XFCC::valueDNS = "DNS";
-
-} // namespace Headers
-
-SecureHeaderHoister::SecureHeaderHoister() :
-    logger(Logger::get("Middleware.SecureHeaderHoister"))
-{
-}
-
-void SecureHeaderHoister::process(Session&& session, std::shared_ptr<Chain> chain)
-{
-    session.req.set(Stalk::Field::version, "8.8");
-
-    auto appendIfNotEmpty = [](std::string& dest, const std::string& key, const std::string& value)
-        {
-            if (!value.empty())
-            {
-                if (!dest.empty())
-                    dest += Headers::XFCC::separator;
-
-                dest += value.empty() ? key : key + "=" + value;
-            }
-        };
-
-    auto build = [&](const Stalk::ConnectionDetail::Security& security) -> std::string
-        {
-            std::string value;
-            appendIfNotEmpty(value, Headers::XFCC::valueHash, security.peerCert.digest);
-            return value;
-        };
-
-    if (session.detail.encrypted && !session.detail.security.peerCert.pem.empty())
+    constexpr const char* headerName() { return "x-forwarded-client-cert"; }
+    const char* headerString(Header header)
     {
-        session.req.set("x-forwarded-client-cert", build(session.detail.security));
+        switch (header)
+        {
+            case Header::By:
+                return "By";
+            case Header::Hash:
+                return "Hash";
+            case Header::Cert:
+                return "Cert";
+            case Header::Chain:
+                return "Chain";
+            case Header::Subject:
+                return "Subject";
+            case Header::URI:
+                return "URI";
+            case Header::DNS:
+                return "DNS";
+            case Header::Unknown:
+                return "Unknown";
+        }
+
+        return "Unknown";
     }
 
-    logger->info("process: Hoisting headers : {}", session.req);
+    Header headerFromString(const std::string& str)
+    {
+        static const std::map<std::string, Header> headerMap = {
+            { "By", Header::By },
+            { "Hash", Header::Hash },
+            { "Cert", Header::Cert },
+            { "Chain", Header::Chain },
+            { "Subject", Header::Subject },
+            { "URI", Header::URI },
+            { "DNS", Header::DNS }
+        };
 
-    // Move to the next middleware
-    chain->process(std::move(session));
+        auto it = headerMap.find(str);
+        return it == headerMap.end() ? Header::Unknown : it->second;
+    }
+
+    static const std::string separator = ";";
 }
+
+SecureHeaderHoister::SecureHeaderHoister(const std::set<SecureHeaders::Header>& headers) : headers_(headers)
+{
+}
+
+SecureHeaderHoister::SecureHeaderHoister(std::set<SecureHeaders::Header>&& headers) : headers_(std::move(headers))
+{
+}
+
 
 void SecureHeaderHoister::operator()(Session&& session, std::shared_ptr<Chain> chain)
 {
-    process(std::move(session), chain);
+    logger()->info("Processing {}", session.req);
+
+    static const auto append = [](std::string& dest, const std::string& key, const std::string& value)
+        {
+            if (!dest.empty())
+                dest += SecureHeaders::separator;
+
+            dest += value.empty() ? key : key + "=" + value;
+        };
+
+    static const auto appendEncodedIfNotEmpty = [](std::string& dest, const std::string& key, const std::string& value)
+        {
+            if (!value.empty())
+            {
+                const auto encoded = Utils::String::replace_all(value,
+                                        {{"\n", "%0A"}, {" ", "%20"}, {"+", "%2B"}, {"/", "%2F"}, {"=", "%3D"}});
+                append(dest, key, encoded);
+            }
+        };
+
+    if (session.detail.encrypted)
+    {
+        std::string value;
+        const auto& security = session.detail.security;
+
+        for (const auto& hdr : headers_)
+        {
+            switch (hdr)
+            {
+                case SecureHeaders::Header::Hash:
+                {
+                    appendEncodedIfNotEmpty(value, SecureHeaders::headerString(SecureHeaders::Header::Hash), security.peerCert.digest);
+                    break;
+                }
+                case SecureHeaders::Header::Cert:
+                {
+                    appendEncodedIfNotEmpty(value, SecureHeaders::headerString(SecureHeaders::Header::Cert), security.peerCert.pem);
+                    break;
+                }
+                case SecureHeaders::Header::Subject:
+                {
+                    appendEncodedIfNotEmpty(value, SecureHeaders::headerString(SecureHeaders::Header::Subject), security.peerCert.commonName);
+                    break;
+                }
+                default:
+                {
+                    break;
+                }
+            }
+        }
+
+        if (!value.empty())
+        {
+            session.req.set("x-forwarded-client-cert", value);
+        }
+    }
+
+    // Move to the next middleware
+    chain->process(std::move(session));
 }
 
 } // namespace Middleware

@@ -13,7 +13,9 @@ inline std::shared_ptr<Middleware::Chain> buildRouteChainBasic(const std::string
     auto chain = std::make_shared<Middleware::Chain>(path);
 
     chain->add(Middleware::Metrics());
-    chain->add(Middleware::SecureHeaderHoister());
+
+    using SecureHeader = Middleware::SecureHeaders::Header;
+    chain->add(Middleware::SecureHeaderHoister( { SecureHeader::Hash, SecureHeader::Cert, SecureHeader::Subject } ));
 
     return chain;
 }

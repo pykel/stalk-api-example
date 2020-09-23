@@ -1,24 +1,42 @@
 #pragma once
 
-#include <vector>
+#include <set>
 #include <functional>
 #include "middleware.h"
-#include "stalk/stalk_types.h"
-#include "logger/logger.h"
 
 namespace Middleware
 {
 
+namespace SecureHeaders
+{
+    enum class Header
+    {
+        By,
+        Hash,
+        Cert,
+        Chain,
+        Subject,
+        URI,
+        DNS,
+        Unknown
+    };
+
+    constexpr const char* headerName();
+    const char* headerString(Header header);
+    Header headerFromString(const char* str);
+}
+
 class SecureHeaderHoister
 {
 public:
-    SecureHeaderHoister();
 
-    void process(Session&& session, std::shared_ptr<Chain> chain);
+    SecureHeaderHoister(const std::set<SecureHeaders::Header>& headers);
+    SecureHeaderHoister(std::set<SecureHeaders::Header>&& headers);
+
     void operator()(Session&& session, std::shared_ptr<Chain> chain);
 
 private:
-    std::shared_ptr<Logger> logger;
+    std::set<SecureHeaders::Header> headers_;
 };
 
 } // namespace Middleware
