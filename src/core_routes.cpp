@@ -4,6 +4,7 @@
 #include <boost/asio.hpp>
 #include "stalk/stalk_websocket_client.h"
 #include "stalk/stalk_server.h"
+#include "stalk/stalk_connection_detail_ostream.h"
 #include "logger/logger.h"
 #include "middleware/middleware.h"
 #include "middleware/middleware_metrics.h"
@@ -24,6 +25,15 @@ CoreRoutes::CoreRoutes(boost::asio::io_context& ioc, std::shared_ptr<Stalk::WebS
     auto logger = Logger::get("core-routes");
     logger->info("CoreRoutes()");
 
+    // Set route error handler instead of letting Stalk respond
+    server->setRouteErrorHandler([logger](Stalk::Status status, Stalk::ConnectionDetail detail, Stalk::Request&& req, Stalk::SendResponse&& send)
+        {
+            logger->info("Route error: status:{} from {} (req:{})", status, detail, req);
+            auto resp = Stalk::Response(req).status(status);
+            send(std::move(resp));
+        });
+
+    // Add the Routes
     RouteLogging { server };
     RouteMetrics { server };
     RouteDelayer { ioc, server };
