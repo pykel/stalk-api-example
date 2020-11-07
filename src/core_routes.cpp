@@ -4,6 +4,7 @@
 #include <boost/asio.hpp>
 #include "stalk/stalk_websocket_client.h"
 #include "stalk/stalk_server.h"
+#include "stalk/stalk_websocket_session.h"
 #include "stalk/stalk_connection_detail_ostream.h"
 #include "logger/logger.h"
 #include "middleware/middleware.h"
